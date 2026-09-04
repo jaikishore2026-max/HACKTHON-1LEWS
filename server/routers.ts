@@ -2,7 +2,7 @@ import { z } from "zod";
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router } from "./_core/trpc";
+import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { fetchEonetEvents } from "./services/eonetService";
 import { getHistoricalLandslideLayer } from "./services/historicalLandslideService";
 import { calculatePrototypeRisk } from "./services/riskEngine";
@@ -20,6 +20,7 @@ import {
 } from "./services/geminiAiService";
 import { getUserQuota, consumeUserQuota } from "./services/quotaService";
 import { translateText, translateBatch } from "./services/googleTranslateService";
+import { fetchLiveStationTelemetry } from "./services/liveTelemetryService";
 import { sdk } from "./_core/sdk";
 import * as db from "./db";
 
@@ -441,6 +442,20 @@ export const appRouter = router({
       };
     }),
   }),
+  telemetry: router({
+    liveStation: publicProcedure
+      .input(
+        z.object({
+          zoneId: z.string().default("CUSTOM"),
+          lat: z.number(),
+          lng: z.number(),
+        })
+      )
+      .query(async ({ input }) => {
+        const data = await fetchLiveStationTelemetry(input.lat, input.lng, input.zoneId);
+        return data;
+      }),
+  }),
   translate: router({
     text: publicProcedure
       .input(
@@ -469,6 +484,75 @@ export const appRouter = router({
         return {
           translations,
           targetLang: input.targetLang,
+        };
+      }),
+  }),
+  reports: router({
+    listActive: publicProcedure.query(async () => {
+      const active = await db.getActiveIncidentReports();
+      return active.map((r) => ({
+        id: r.id,
+        reportId: r.reportId,
+        category: r.category,
+        severity: r.severity,
+        description: r.description,
+        latitude: parseFloat(r.latitude) || 0,
+        longitude: parseFloat(r.longitude) || 0,
+        attachmentName: r.attachmentName,
+        reporterName: r.reporterName,
+        status: r.status,
+        createdAt: r.createdAt.toISOString(),
+        expiresAt: r.expiresAt.toISOString(),
+      }));
+    }),
+    create: protectedProcedure
+      .input(
+        z.object({
+          category: z.string().min(1),
+          severity: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]),
+          description: z.string().min(3).max(2000),
+          latitude: z.number(),
+          longitude: z.number(),
+          attachmentName: z.string().nullable().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const user = ctx.user;
+        const reportId = `LANDSORA-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+        // Temporary active window: 24 hours from creation
+        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+        const created = await db.insertIncidentReport({
+          reportId,
+          userId: user.id ?? null,
+          reporterName: user.name || "Authenticated Reporter",
+          reporterEmail: user.email ?? null,
+          category: input.category,
+          severity: input.severity,
+          description: input.description,
+          latitude: input.latitude.toFixed(6),
+          longitude: input.longitude.toFixed(6),
+          attachmentName: input.attachmentName ?? null,
+          status: "ACTIVE",
+          expiresAt,
+        });
+
+        return {
+          success: true,
+          report: {
+            id: created.id,
+            reportId: created.reportId,
+            category: created.category,
+            severity: created.severity,
+            description: created.description,
+            latitude: parseFloat(created.latitude) || 0,
+            longitude: parseFloat(created.longitude) || 0,
+            attachmentName: created.attachmentName,
+            reporterName: created.reporterName,
+            status: created.status,
+            createdAt: created.createdAt.toISOString(),
+            expiresAt: created.expiresAt.toISOString(),
+          },
         };
       }),
   }),

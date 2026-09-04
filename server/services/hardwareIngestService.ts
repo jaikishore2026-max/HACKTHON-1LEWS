@@ -25,6 +25,28 @@ export type HardwareNodeLiveState = IngestedHardwarePayload & {
 // In-memory buffer of live hardware nodes
 const liveNodesBuffer = new Map<string, HardwareNodeLiveState>();
 
+export function verifyTelemetryAuth(providedKey?: string): boolean {
+  const configuredKey = process.env.TELEMETRY_INGEST_KEY || "landsora_hw_sensor_key_2026";
+  if (!providedKey) return false;
+  return providedKey.trim() === configuredKey.trim();
+}
+
+export function validatePhysicalBounds(payload: IngestedHardwarePayload): { valid: boolean; reason?: string } {
+  if (payload.rainfallMm < 0 || payload.rainfallMm > 400) {
+    return { valid: false, reason: "Rainfall rate must be between 0 and 400 mm/hr" };
+  }
+  if (payload.soilMoisture < 0 || payload.soilMoisture > 100) {
+    return { valid: false, reason: "Soil moisture saturation must be between 0% and 100%" };
+  }
+  if (Math.abs(payload.tiltDegrees) > 90) {
+    return { valid: false, reason: "Slope tilt inclination angle cannot exceed ±90 degrees" };
+  }
+  if (payload.batteryVoltage !== undefined && (payload.batteryVoltage < 0 || payload.batteryVoltage > 24)) {
+    return { valid: false, reason: "Battery voltage must be within realistic field bounds (0V - 24V)" };
+  }
+  return { valid: true };
+}
+
 export function ingestTelemetryFromHardware(payload: IngestedHardwarePayload): {
   success: boolean;
   nodeId: string;

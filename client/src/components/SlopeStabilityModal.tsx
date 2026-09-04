@@ -24,6 +24,15 @@ export function SlopeStabilityModal({
   const [unitWeight, setUnitWeight] = useState(18.5); // gamma (kN/m^3) Soil Unit Weight
   const [porePressureRatio, setPorePressureRatio] = useState(Number((initialSoilMoisture / 100 * 0.55).toFixed(2))); // r_u (0.0 to 0.6)
 
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   // Mohr-Coulomb Infinite Slope Factor of Safety Calculation:
@@ -60,7 +69,15 @@ export function SlopeStabilityModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Mohr-Coulomb Factor of Safety Slope Simulator for ${zoneName}`}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div className="relative w-full max-w-3xl bg-stone-950 border border-amber-500/40 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-stone-800 bg-gradient-to-r from-stone-900 to-amber-950/40">

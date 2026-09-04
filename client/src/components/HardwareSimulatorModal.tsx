@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { X, Cpu, Send, CheckCircle2, AlertTriangle, Radio, Terminal, Copy, Check } from "lucide-react";
 import axios from "axios";
+import { GLOBAL_GEOTECHNICAL_STATIONS } from "@shared/stations";
 
 interface HardwareSimulatorModalProps {
   isOpen: boolean;
@@ -27,6 +28,15 @@ export function HardwareSimulatorModal({
   const [isTransmitting, setIsTransmitting] = useState(false);
   const [responseLog, setResponseLog] = useState<{ status: number; body: any; timestamp: string } | null>(null);
   const [copied, setCopied] = useState(false);
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -75,7 +85,15 @@ export function HardwareSimulatorModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="ESP32 Hardware Ingestion and Packet Simulator"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div className="relative w-full max-w-2xl bg-stone-950 border border-amber-500/40 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-stone-800 bg-gradient-to-r from-stone-900 to-amber-950/40">
@@ -112,9 +130,9 @@ export function HardwareSimulatorModal({
                 onChange={(e) => setSelectedNode(e.target.value)}
                 className="w-full mt-1 px-3 py-2 rounded-lg bg-stone-900 border border-stone-800 text-stone-200 font-mono text-xs focus:outline-none focus:border-amber-500"
               >
-                {["KDG-03", "WYD-04", "IDK-01", "NIL-02", "UTK-05", "CKM-06", "MNR-07", "VLP-08", "MHD-09", "CHM-10", "DRJ-11", "SHM-12"].map((id) => (
-                  <option key={id} value={id}>
-                    {id} — Field Node
+                {GLOBAL_GEOTECHNICAL_STATIONS.map((st) => (
+                  <option key={st.id} value={st.id}>
+                    {st.countryFlag} {st.id} — {st.name} ({st.country})
                   </option>
                 ))}
               </select>

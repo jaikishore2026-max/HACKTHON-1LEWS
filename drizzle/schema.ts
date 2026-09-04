@@ -25,4 +25,28 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-// TODO: Add your tables here
+/**
+ * Temporary active incident reports table.
+ * Verified field reports logged by authenticated operators and citizens.
+ * Records remain temporarily active until expiration or resolution.
+ */
+export const incidentReports = mysqlTable("incident_reports", {
+  id: int("id").autoincrement().primaryKey(),
+  reportId: varchar("reportId", { length: 64 }).notNull().unique(),
+  userId: int("userId"),
+  reporterName: varchar("reporterName", { length: 255 }).notNull(),
+  reporterEmail: varchar("reporterEmail", { length: 320 }),
+  category: varchar("category", { length: 64 }).notNull(),
+  severity: mysqlEnum("severity", ["LOW", "MEDIUM", "HIGH", "CRITICAL"]).notNull(),
+  description: text("description").notNull(),
+  latitude: varchar("latitude", { length: 32 }).notNull(),
+  longitude: varchar("longitude", { length: 32 }).notNull(),
+  attachmentName: varchar("attachmentName", { length: 255 }),
+  status: mysqlEnum("status", ["ACTIVE", "RESOLVED", "EXPIRED"]).default("ACTIVE").notNull(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type IncidentReport = typeof incidentReports.$inferSelect;
+export type InsertIncidentReport = typeof incidentReports.$inferInsert;

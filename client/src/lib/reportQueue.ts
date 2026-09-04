@@ -45,3 +45,29 @@ export const clearQueuedReports = (storage: Pick<Storage, "removeItem"> = window
     storage.removeItem("lews-report-queue-list");
   } catch {}
 };
+
+export const exportReportsToGeoJson = (reports: LocalQueuedReport[]) => {
+  return {
+    type: "FeatureCollection" as const,
+    metadata: {
+      generatedAt: new Date().toISOString(),
+      platform: "Landsora IoT LEWS",
+      totalReports: reports.length,
+    },
+    features: reports.map(r => ({
+      type: "Feature" as const,
+      geometry: {
+        type: "Point" as const,
+        coordinates: [r.location.longitude, r.location.latitude],
+      },
+      properties: {
+        reportId: r.reportId,
+        category: r.category,
+        severity: r.severity,
+        description: r.description,
+        attachment: r.attachment,
+        createdAt: r.createdAt,
+      },
+    })),
+  };
+};
